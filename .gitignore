@@ -1,0 +1,38 @@
+# jeffjenx.ai .gitignore
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Secrets (never commit)
+*.key
+*.pem
+.ssh/
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# OS
+Thumbs.db

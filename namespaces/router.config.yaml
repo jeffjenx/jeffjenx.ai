@@ -1,0 +1,300 @@
+# Agent Router Configuration
+# Central routing definition for all jeffjenx.ai agents
+# This file maps agent namespaces to available tools and configuration
+
+router:
+  version: "1.0"
+  last_updated: "2026-05-29"
+  description: "Hub-and-Spoke routing configuration for jeffjenx.ai agents"
+
+agents:
+
+  # Agent 1: Researcher
+  # Job: Map codebase, find patterns, flag risks (read-only)
+  researcher:
+    enabled: true
+    namespace: "researcher"
+    job_title: "Codebase Researcher"
+    description: "Explores project structure, documents patterns, identifies risks before any work begins"
+    
+    tools:
+      - read          # Read files
+      - grep          # Search files
+      - glob          # File globbing
+      - validate      # Run validators
+    
+    cannot_do:
+      - edit_files
+      - delete_files
+      - run_commands
+      - access_external_resources
+    
+    starting_confidence_tier: 0
+    
+    input_requirements:
+      - project_path
+      - scope_description
+    
+    output_format:
+      - file_map (what files exist, their purpose)
+      - patterns_found (existing conventions)
+      - risks_identified (potential issues)
+      - dependencies (third-party libs)
+    
+    handoff_protocol: "Passes findings to Story Agent; key outputs: file structure, existing patterns, risk flags"
+
+  # Agent 2: Story Writer
+  # Job: Turn requirement into user story with acceptance criteria (read-only)
+  story_writer:
+    enabled: true
+    namespace: "story-writer"
+    job_title: "Story Writer"
+    description: "Converts feature requests into user stories with acceptance criteria, failure paths, edge cases"
+    
+    tools:
+      - read          # Read requirements, project docs
+      - grep          # Search for similar stories
+    
+    cannot_do:
+      - write_code
+      - make_technical_decisions
+      - invent_business_rules
+      - move_forward_if_unclear
+    
+    starting_confidence_tier: 0
+    
+    input_requirements:
+      - feature_description
+      - researcher_findings (from Agent 1)
+    
+    output_format:
+      - user_story (As a [role], I want [behavior], so that [outcome])
+      - acceptance_criteria (testable statements)
+      - failure_paths (what goes wrong)
+      - edge_cases (boundaries, edge conditions)
+      - business_rules (constraints, policies)
+      - open_questions (genuinely unclear items)
+    
+    handoff_protocol: "Produces user story; requires HUMAN APPROVAL before proceeding; passes to Spec Writer"
+    checkpoint: 1  # First human checkpoint
+
+  # Agent 3: Spec Writer
+  # Job: Turn story into technical brief (read-only)
+  spec_writer:
+    enabled: true
+    namespace: "spec-writer"
+    job_title: "Specification Writer"
+    description: "Converts approved user story into technical blueprint with data models, APIs, UI, tests"
+    
+    tools:
+      - read          # Read story, project docs
+      - grep          # Search existing specs
+    
+    cannot_do:
+      - edit_files
+      - invent_new_infrastructure
+      - skip_tenant_isolation_concerns
+      - leave_questions_unanswered
+    
+    starting_confidence_tier: 0
+    
+    input_requirements:
+      - approved_user_story
+      - researcher_findings
+      - claude_md_rules
+    
+    output_format:
+      - data_model_changes (new fields, migrations)
+      - flow_diagrams (process flows)
+      - api_changes (endpoints, request/response shapes)
+      - frontend_changes (components, pages, hooks)
+      - tests_required (success, failure, edge cases)
+      - risks_and_open_questions
+      - files_that_will_change (exhaustive list)
+    
+    handoff_protocol: "Produces technical brief; requires HUMAN APPROVAL before building; passes to appropriate Builder Agent"
+    checkpoint: 2  # Second human checkpoint
+
+  # Agent 4: Builder (Generic)
+  # Job: Implement feature according to spec (domain-specific)
+  builder:
+    enabled: true
+    namespace: "builder"
+    job_title: "Implementation Builder"
+    description: "Executes approved technical brief; domain varies (copywriting, code, content, etc.)"
+    
+    tools:
+      - read          # Read spec, project files
+      - edit          # Edit domain-specific files
+      - write         # Write new files
+      - bash          # Run commands (tests, lint, typecheck)
+    
+    cannot_do:
+      - modify_files_outside_agreed_scope
+      - invent_dependencies_without_instruction
+      - ignore_existing_patterns
+      - skip_tests
+      - stop_without_validation
+    
+    starting_confidence_tier: 0
+    
+    input_requirements:
+      - approved_technical_brief
+      - researcher_findings
+      - claude_md_rules
+    
+    output_format:
+      - implementation (code, copy, design, etc.)
+      - files_added_or_edited (exhaustive list)
+      - patterns_reused (helpers, conventions followed)
+      - tests_included (unit/integration tests)
+      - validation_results (typecheck, lint, tests pass?)
+      - claude_md_rule_gaps (rules that would have helped)
+    
+    handoff_protocol: "Passes to Validator Agent; includes summary of what was built, patterns used, assumptions made"
+
+  # Agent 5: Validator
+  # Job: Audit implementation against spec; report gaps (read-only)
+  validator:
+    enabled: true
+    namespace: "validator"
+    job_title: "Implementation Validator"
+    description: "Audits implementation against story, spec, and brand rules; reports gaps without fixing"
+    
+    tools:
+      - read          # Read implementation
+      - grep          # Search for patterns/issues
+      - validate      # Run brand/security validators
+    
+    cannot_do:
+      - edit_files    # Only reports, never fixes
+      - approve_or_reject  # Reports; human decides
+      - modify_specs  # Only audits against approved specs
+      - invent_issues  # Only reports actual gaps
+    
+    starting_confidence_tier: 0
+    
+    input_requirements:
+      - approved_user_story
+      - approved_technical_brief
+      - builder_output
+      - claude_md_rules
+    
+    output_format:
+      - audit_report (grouped by severity)
+      - findings (critical, important, minor)
+      - each_finding_includes (file path, line number, description, remediation suggestion)
+      - checklist_results (acceptance criteria met?, scope respected?, tests adequate?, security OK?)
+    
+    audit_checklist:
+      - ✓ All acceptance criteria from story implemented?
+      - ✓ All items from spec brief completed?
+      - ✓ Brand consistency (tone, voice, vocabulary, formatting)?
+      - ✓ CLAUDE.md rules followed?
+      - ✓ No scope creep beyond approved brief?
+      - ✓ Security/privacy gaps (auth, tenant isolation, secrets exposure)?
+      - ✓ Test coverage adequate (success, failure, edge cases)?
+      - ✓ No duplicate logic; using existing helpers?
+      - ✓ Error handling present?
+      - ✓ Data validation present?
+    
+    handoff_protocol: "Reports findings to human in review UI; data flows to VALIDATOR REVIEW CHECKPOINT"
+    checkpoint: 3  # Third human checkpoint (final)
+
+# Platform Integrations
+# How to invoke agents for specific platforms
+
+platforms:
+  claude:
+    enabled: true
+    base_instructions: "Load global jeffjenx.md + project jeffjenx.md + namespace jeffjenx.md at startup"
+    integration_guide: "integrations/claude/README.md"
+    api_model: "claude-opus"
+  
+  openai:
+    enabled: true
+    base_instructions: "Load global jeffjenx.md + project jeffjenx.md + namespace jeffjenx.md at startup"
+    integration_guide: "integrations/openai/README.md"
+    api_model: "gpt-4"
+  
+  copilot:
+    enabled: true
+    base_instructions: "Load .copilot-instructions or equivalent at session start"
+    integration_guide: "integrations/copilot/README.md"
+  
+  local_llm:
+    enabled: true
+    base_instructions: "Load instructions as system prompt at startup"
+    integration_guide: "integrations/local-llms/README.md"
+
+# Autonomy Configuration
+# Tier defaults and progression rules
+
+autonomy:
+  tier_definitions: "governance/autonomy-framework.md"
+  
+  tier_defaults:
+    researcher: 0
+    story_writer: 0
+    spec_writer: 0
+    builder: 0
+    validator: 0
+  
+  progression_thresholds:
+    tier_0_to_1: "5 consecutive successful runs (0 rejections)"
+    tier_1_to_2: "10 consecutive successful runs (confidence > 80%)"
+    tier_2_to_3: "20 consecutive successful runs (confidence > 90%)"
+  
+  regression_rules:
+    tier_3_to_2: "accuracy < 85% or 2+ critical findings in last 5 runs"
+    tier_2_to_1: "accuracy < 75% or override_rate > 10%"
+    tier_1_to_0: "accuracy < 60% or override_rate > 20%"
+
+# Memory System
+# Multi-level CLAUDE.md loading
+
+memory:
+  levels:
+    - name: "global"
+      path: "c:\\Development\\jeffjenx.md"
+      scope: "organization-wide"
+      priority: 1
+      description: "Global rules, values, commands"
+    
+    - name: "project"
+      path: "{project-root}/jeffjenx.md"
+      scope: "project-specific"
+      priority: 2
+      description: "Project conventions, what NOT to do"
+    
+    - name: "namespace"
+      path: "namespaces/{agent-name}/jeffjenx.md"
+      scope: "agent/domain-specific"
+      priority: 3
+      description: "Agent-specific rules and constraints"
+  
+  loading_order: "global → project → namespace (later overrides earlier)"
+  
+  evolution_rule: "When Validator finds issue → would CLAUDE.md rule prevent it? → if yes, add rule"
+
+# Data Federation
+# How agents query jeffjenx.db
+
+data_federation:
+  warehouse_repo: "c:\\Development\\jeffjenx.db"
+  query_interface: "SQL (recommended) | JSON DSL | CLI"
+  schema_definitions: "schema/*.yaml"
+  sync_mechanism: "sync/sync-engine.js"
+  sync_frequency: "daily (configurable)"
+
+# Current Status
+status:
+  phase: "Phase 1: Foundation"
+  last_updated: "2026-05-29"
+  todo:
+    - "Create agent.md for each agent namespace"
+    - "Create namespace-level jeffjenx.md files"
+    - "Set up integration guides (Claude, OpenAI, Copilot, local LLMs)"
+    - "Configure sync mechanism for jeffjenx.db"
+    - "Build MVP review UI"
+    - "Run Phase 3 pilot with one real task"
